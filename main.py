@@ -10,10 +10,12 @@ from itertools import cycle
 from asyncio import sleep
 
 from rubbish_classifier.inference import predictions
+from rubbish_detector import DetectRubbish
 
 app = FastAPI()
 app.mount("/public", StaticFiles(directory="public"), name="public")
 number_detector = Detector(r'--oem 3 --psm 11 outputbase digits')
+rubbish_detector = DetectRubbish()
 side_images = [cv2.imread('photos/num1.jpg'), cv2.imread('photos/num2.jpg'), cv2.imread('photos/num3.jpg')]
 top_images = [[cv2.imread('photos/test1.jpg')], [cv2.imread('photos/test2.jpg')], [cv2.imread('photos/test3.jpg')]]
 current_side_image = None
@@ -39,8 +41,12 @@ async def get_frame():
     counter += 1
     counter %= 1000
     probability = predictions(current_top_image)
-    cv2.imwrite(f'public/{counter}.jpg', current_top_image)
-    return {"url": f'public/{counter}.jpg', "probability": probability}
+    if probability < 50:
+        cv2.imwrite(f'public/{counter}.jpg', current_top_image)
+        return {"url": f'public/{counter}.jpg', "probability": probability}
+    else:
+        result = rubbish_detector.detect(current_top_image, f'public/{counter}.jpg')
+        return {"url": f'public/{counter}.jpg', "probability": probability, "amount": result}
 
 
 
